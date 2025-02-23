@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Drawing App with Drag-Reveal Menu</title>
+  <title>Drawing App with Hidden Drag Menu</title>
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
   <style>
     html, body {
@@ -13,13 +13,12 @@
       overflow: hidden !important;
       background: black !important;
     }
-    /* Hide scrollbars in WebKit browsers */
+    /* Hide scrollbars for WebKit browsers */
     ::-webkit-scrollbar {
       display: none !important;
     }
-    /* The canvas fills the viewport.
-       Intrinsic size: 1920x1080.
-       Background image and custom red circle cursor. */
+    /* The drawing canvas fills the viewport.
+       Intrinsic size is 1920x1080, with background image and custom red circle cursor. */
     #canvas {
       display: block;
       width: 100vw;
@@ -28,31 +27,32 @@
       background-size: cover;
       cursor: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxNiIgaGVpZ2h0PSIxNiI+PGNpcmNsZSBjeD0iOCIgY3k9IjgiIHI9IjgiIGZpbGw9InJlZCIvPjwvc3ZnPg==") 8 8, auto;
     }
-    /* The pull-in menu, initially hidden off-screen to the left */
+    /* The pull-in menu – a small horizontal panel with two icon buttons.
+       It is positioned near the left edge and has no background overlay. */
     #pullMenu {
       position: fixed;
-      top: 0;
-      left: -200px; /* Menu width is 200px */
+      top: 50%;
+      left: -200px; /* Hidden off-screen to the left; width is 200px */
       width: 200px;
-      height: 100vh;
-      background: rgba(0, 0, 0, 0.8);
-      color: white;
-      padding: 20px;
-      box-sizing: border-box;
-      transition: left 0.3s ease;
+      height: 100px;
+      transform: translateY(-50%);
+      background: transparent;
+      display: flex;
+      justify-content: space-around;
+      align-items: center;
       z-index: 1002;
+      transition: left 0.3s ease;
     }
+    /* Style the buttons as icons */
     #pullMenu button {
-      font-size: 24px;
+      font-size: 32px;
       padding: 10px;
-      margin-top: 20px;
       cursor: pointer;
       background: none;
       border: none;
       color: white;
     }
-    /* The menu zone covers the leftmost 50px of the screen.
-       It is transparent and is used only to detect a drag gesture. */
+    /* Reserve the leftmost 50px as the drag area (menu zone) */
     #menuZone {
       position: fixed;
       top: 0;
@@ -61,20 +61,20 @@
       height: 100vh;
       z-index: 1003;
       background: transparent;
+      cursor: ew-resize;
     }
   </style>
 </head>
 <body>
   <canvas id="canvas" width="1920" height="1080"></canvas>
   
-  <!-- Hidden pull-in menu -->
+  <!-- Hidden pull-in menu showing icon buttons only: trash can and left arrow -->
   <div id="pullMenu">
-    <h3 style="margin:0 0 10px 0;">Menu</h3>
     <button id="clearBtn">🗑</button>
     <button id="hideMenuBtn">←</button>
   </div>
   
-  <!-- Menu zone for detecting drag gestures -->
+  <!-- Drag area (leftmost 50px) used to reveal the menu -->
   <div id="menuZone"></div>
   
   <script>
@@ -84,8 +84,8 @@
     let paths = [];
     let currentPath = [];
     
-    // Convert event coordinates to canvas coordinates,
-    // accounting for scaling between intrinsic (1920x1080) and displayed sizes.
+    // Converts event coordinates to canvas coordinates,
+    // accounting for scaling between the canvas's intrinsic size (1920x1080) and its displayed size.
     function getMousePos(evt) {
       const rect = canvas.getBoundingClientRect();
       const scaleX = canvas.width / rect.width;
@@ -104,20 +104,18 @@
       };
     }
     
-    // Prevent drawing if starting in the left 50px (menu zone)
+    // Prevent drawing if the input starts in the leftmost 50px
     canvas.addEventListener('mousedown', (evt) => {
       if (evt.clientX < 50) return;
       drawing = true;
       currentPath = [];
       currentPath.push(getMousePos(evt));
     });
-    
     canvas.addEventListener('mousemove', (evt) => {
       if (!drawing) return;
       currentPath.push(getMousePos(evt));
       redraw();
     });
-    
     function endDrawing(evt) {
       if (!drawing) return;
       drawing = false;
@@ -127,7 +125,7 @@
     canvas.addEventListener('mouseup', endDrawing);
     canvas.addEventListener('mouseleave', endDrawing);
     
-    // Touch events (ignore touches starting in left 50px)
+    // Touch events: ignore touches that begin in the leftmost 50px.
     canvas.addEventListener('touchstart', (evt) => {
       if (evt.touches[0].clientX < 50) return;
       evt.preventDefault();
@@ -135,14 +133,12 @@
       currentPath = [];
       currentPath.push(getMousePos(evt));
     });
-    
     canvas.addEventListener('touchmove', (evt) => {
       evt.preventDefault();
       if (!drawing) return;
       currentPath.push(getMousePos(evt));
       redraw();
     });
-    
     canvas.addEventListener('touchend', (evt) => {
       evt.preventDefault();
       if (!drawing) return;
@@ -156,16 +152,13 @@
       ctx.lineWidth = 4;
       ctx.lineJoin = 'round';
       ctx.lineCap = 'round';
-      ctx.strokeStyle = '#FFEA00';
+      ctx.strokeStyle = '#FFEA00';  // Yellow drawing color
       
       paths.forEach(path => {
         ctx.beginPath();
         path.forEach((point, i) => {
-          if(i === 0) {
-            ctx.moveTo(point.x, point.y);
-          } else {
-            ctx.lineTo(point.x, point.y);
-          }
+          if(i === 0) ctx.moveTo(point.x, point.y);
+          else ctx.lineTo(point.x, point.y);
         });
         ctx.stroke();
       });
@@ -173,63 +166,75 @@
       if(currentPath.length) {
         ctx.beginPath();
         currentPath.forEach((point, i) => {
-          if(i === 0) {
-            ctx.moveTo(point.x, point.y);
-          } else {
-            ctx.lineTo(point.x, point.y);
-          }
+          if(i === 0) ctx.moveTo(point.x, point.y);
+          else ctx.lineTo(point.x, point.y);
         });
         ctx.stroke();
       }
     }
     
-    // Pull-in menu functionality
+    // Variables for detecting drag gesture to reveal menu.
     const pullMenu = document.getElementById('pullMenu');
     const menuZone = document.getElementById('menuZone');
     const clearBtn = document.getElementById('clearBtn');
     const hideMenuBtn = document.getElementById('hideMenuBtn');
-    
     let dragStartX = null;
+    let menuTimeout = null;
     
-    // Mouse events on the menu zone for a drag gesture
-    menuZone.addEventListener('mousedown', (evt) => {
-      dragStartX = evt.clientX;
+    // Show the menu and auto-hide after 5 seconds.
+    function showMenu() {
+      pullMenu.style.left = '0';
+      if (menuTimeout) clearTimeout(menuTimeout);
+      menuTimeout = setTimeout(() => {
+        pullMenu.style.left = '-200px';
+      }, 5000);
+    }
+    
+    // Use document-level mouse events to detect a drag starting in the left 50px.
+    document.addEventListener('mousedown', (evt) => {
+      if (evt.clientX < 50) {
+        dragStartX = evt.clientX;
+      }
     });
-    menuZone.addEventListener('mousemove', (evt) => {
+    document.addEventListener('mousemove', (evt) => {
       if (dragStartX !== null) {
-        let delta = evt.clientX - dragStartX;
-        if (delta > 50) { // require a 50px drag to reveal the menu
-          pullMenu.style.left = '0';
+        const delta = evt.clientX - dragStartX;
+        if (delta > 50) {
+          showMenu();
+          dragStartX = null;
         }
       }
     });
-    menuZone.addEventListener('mouseup', () => {
-      dragStartX = null;
-    });
-    menuZone.addEventListener('mouseleave', () => {
+    document.addEventListener('mouseup', () => {
       dragStartX = null;
     });
     
-    // Touch events for the menu zone
-    menuZone.addEventListener('touchstart', (evt) => {
-      dragStartX = evt.touches[0].clientX;
-    });
-    menuZone.addEventListener('touchmove', (evt) => {
-      let delta = evt.touches[0].clientX - dragStartX;
-      if (delta > 50) {
-        pullMenu.style.left = '0';
+    // Touch drag detection for mobile
+    document.addEventListener('touchstart', (evt) => {
+      if (evt.touches[0].clientX < 50) {
+        dragStartX = evt.touches[0].clientX;
       }
     });
-    menuZone.addEventListener('touchend', () => {
+    document.addEventListener('touchmove', (evt) => {
+      if (dragStartX !== null) {
+        const delta = evt.touches[0].clientX - dragStartX;
+        if (delta > 50) {
+          showMenu();
+          dragStartX = null;
+        }
+      }
+    });
+    document.addEventListener('touchend', () => {
       dragStartX = null;
     });
     
-    // Hide the menu when the hide button (arrow) is clicked
+    // Hide menu if the hide button (arrow) is clicked.
     hideMenuBtn.addEventListener('click', () => {
       pullMenu.style.left = '-200px';
+      if (menuTimeout) clearTimeout(menuTimeout);
     });
     
-    // Clear the drawing when the trash can button is pressed, then auto-hide the menu
+    // Clear drawing when the trash can icon is clicked; auto-hide menu shortly after.
     clearBtn.addEventListener('click', () => {
       paths = [];
       currentPath = [];
