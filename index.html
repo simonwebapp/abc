@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Drawing App with Hidden Menu</title>
+  <title>Drawing App with Drag-Reveal Menu</title>
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
   <style>
     html, body {
@@ -18,8 +18,8 @@
       display: none !important;
     }
     /* The canvas fills the viewport.
-       Its intrinsic size is 1920x1080.
-       It has a background image and a custom red circle cursor. */
+       Intrinsic size: 1920x1080.
+       Background image and custom red circle cursor. */
     #canvas {
       display: block;
       width: 100vw;
@@ -28,11 +28,11 @@
       background-size: cover;
       cursor: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxNiIgaGVpZ2h0PSIxNiI+PGNpcmNsZSBjeD0iOCIgY3k9IjgiIHI9IjgiIGZpbGw9InJlZCIvPjwvc3ZnPg==") 8 8, auto;
     }
-    /* The pull-in menu, initially hidden off-screen */
+    /* The pull-in menu, initially hidden off-screen to the left */
     #pullMenu {
       position: fixed;
       top: 0;
-      left: -200px;  /* Width of the menu is 200px */
+      left: -200px; /* Menu width is 200px */
       width: 200px;
       height: 100vh;
       background: rgba(0, 0, 0, 0.8);
@@ -43,13 +43,16 @@
       z-index: 1002;
     }
     #pullMenu button {
-      font-size: 20px;
-      padding: 10px 15px;
+      font-size: 24px;
+      padding: 10px;
       margin-top: 20px;
       cursor: pointer;
+      background: none;
+      border: none;
+      color: white;
     }
-    /* The menu zone covers the left 50px of the screen.
-       It's transparent but intercepts clicks/touches to open the menu. */
+    /* The menu zone covers the leftmost 50px of the screen.
+       It is transparent and is used only to detect a drag gesture. */
     #menuZone {
       position: fixed;
       top: 0;
@@ -58,22 +61,20 @@
       height: 100vh;
       z-index: 1003;
       background: transparent;
-      cursor: pointer;
     }
   </style>
 </head>
 <body>
-  <!-- The drawing canvas -->
   <canvas id="canvas" width="1920" height="1080"></canvas>
   
   <!-- Hidden pull-in menu -->
   <div id="pullMenu">
     <h3 style="margin:0 0 10px 0;">Menu</h3>
-    <button id="clearBtn">Clear Drawing</button>
-    <button id="hideMenuBtn">Hide Menu</button>
+    <button id="clearBtn">🗑</button>
+    <button id="hideMenuBtn">←</button>
   </div>
   
-  <!-- The left 50px menu zone (invisible) -->
+  <!-- Menu zone for detecting drag gestures -->
   <div id="menuZone"></div>
   
   <script>
@@ -84,7 +85,7 @@
     let currentPath = [];
     
     // Convert event coordinates to canvas coordinates,
-    // accounting for scaling between the intrinsic (1920x1080) and displayed sizes.
+    // accounting for scaling between intrinsic (1920x1080) and displayed sizes.
     function getMousePos(evt) {
       const rect = canvas.getBoundingClientRect();
       const scaleX = canvas.width / rect.width;
@@ -103,9 +104,9 @@
       };
     }
     
-    // Prevent drawing if the event starts in the left 50px (the menu zone)
+    // Prevent drawing if starting in the left 50px (menu zone)
     canvas.addEventListener('mousedown', (evt) => {
-      if (evt.clientX < 50) return;  // Do not start drawing if in the menu zone
+      if (evt.clientX < 50) return;
       drawing = true;
       currentPath = [];
       currentPath.push(getMousePos(evt));
@@ -126,9 +127,8 @@
     canvas.addEventListener('mouseup', endDrawing);
     canvas.addEventListener('mouseleave', endDrawing);
     
-    // Touch events for mobile devices. (Touch events should not fire if within menu zone due to the overlay.)
+    // Touch events (ignore touches starting in left 50px)
     canvas.addEventListener('touchstart', (evt) => {
-      // If the touch starts within the left 50px, do nothing (the menuZone will handle it)
       if (evt.touches[0].clientX < 50) return;
       evt.preventDefault();
       drawing = true;
@@ -156,7 +156,7 @@
       ctx.lineWidth = 4;
       ctx.lineJoin = 'round';
       ctx.lineCap = 'round';
-      ctx.strokeStyle = '#FFEA00';  // Yellow drawing color
+      ctx.strokeStyle = '#FFEA00';
       
       paths.forEach(path => {
         ctx.beginPath();
@@ -189,18 +189,47 @@
     const clearBtn = document.getElementById('clearBtn');
     const hideMenuBtn = document.getElementById('hideMenuBtn');
     
-    // When the menu zone is clicked, slide the pull-in menu into view.
-    menuZone.addEventListener('click', () => {
-      pullMenu.style.left = '0';
+    let dragStartX = null;
+    
+    // Mouse events on the menu zone for a drag gesture
+    menuZone.addEventListener('mousedown', (evt) => {
+      dragStartX = evt.clientX;
+    });
+    menuZone.addEventListener('mousemove', (evt) => {
+      if (dragStartX !== null) {
+        let delta = evt.clientX - dragStartX;
+        if (delta > 50) { // require a 50px drag to reveal the menu
+          pullMenu.style.left = '0';
+        }
+      }
+    });
+    menuZone.addEventListener('mouseup', () => {
+      dragStartX = null;
+    });
+    menuZone.addEventListener('mouseleave', () => {
+      dragStartX = null;
     });
     
-    // Hide the menu when the "Hide Menu" button is clicked.
+    // Touch events for the menu zone
+    menuZone.addEventListener('touchstart', (evt) => {
+      dragStartX = evt.touches[0].clientX;
+    });
+    menuZone.addEventListener('touchmove', (evt) => {
+      let delta = evt.touches[0].clientX - dragStartX;
+      if (delta > 50) {
+        pullMenu.style.left = '0';
+      }
+    });
+    menuZone.addEventListener('touchend', () => {
+      dragStartX = null;
+    });
+    
+    // Hide the menu when the hide button (arrow) is clicked
     hideMenuBtn.addEventListener('click', () => {
       pullMenu.style.left = '-200px';
     });
     
-    // Clear the drawing when the "Clear Drawing" button is pressed,
-    // then auto-hide the menu after a short delay.
+    // Clear the drawing when the trash can button is pressed, then auto-hide the menu
     clearBtn.addEventListener('click', () => {
       paths = [];
       currentPath = [];
