@@ -2,22 +2,22 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Drawing App</title>
+  <title>Drawing App with Hidden Clear Menu</title>
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
   <style>
     html, body {
-      margin: 0;
-      padding: 0;
-      width: 100vw;
-      height: 100vh;
-      overflow: hidden;
-      background: black;
+      margin: 0 !important;
+      padding: 0 !important;
+      width: 100vw !important;
+      height: 100vh !important;
+      overflow: hidden !important;
+      background: black !important;
     }
-    /* Hide scrollbars for WebKit browsers */
+    /* Hide scrollbars in WebKit browsers */
     ::-webkit-scrollbar {
-      display: none;
+      display: none !important;
     }
-    /* Canvas with a background image and custom red cursor */
+    /* Canvas fills the viewport, intrinsic size 1920x1080, with background image and custom cursor */
     #canvas {
       display: block;
       width: 100vw;
@@ -26,22 +26,61 @@
       background-size: cover;
       cursor: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxNiIgaGVpZ2h0PSIxNiI+PGNpcmNsZSBjeD0iOCIgY3k9IjgiIHI9IjgiIGZpbGw9InJlZCIvPjwvc3ZnPg==") 8 8, auto;
     }
+    /* Hidden pull-in menu: initially off-screen to the left */
+    #pullMenu {
+      position: fixed;
+      top: 0;
+      left: -160px; /* Off-screen initially */
+      width: 160px;
+      height: 100vh;
+      background: rgba(0, 0, 0, 0.7);
+      color: white;
+      padding: 20px;
+      box-sizing: border-box;
+      transition: left 0.3s ease;
+      z-index: 1000;
+    }
+    #pullMenu button {
+      font-size: 20px;
+      padding: 10px 15px;
+      margin-top: 20px;
+      cursor: pointer;
+    }
+    /* A small handle along the left edge to reveal the menu */
+    #menuHandle {
+      position: fixed;
+      top: 50%;
+      left: 0;
+      width: 20px;
+      height: 60px;
+      background: rgba(255, 255, 255, 0.3);
+      cursor: pointer;
+      z-index: 1001;
+      transform: translateY(-50%);
+    }
   </style>
 </head>
 <body>
   <canvas id="canvas" width="1920" height="1080"></canvas>
-  <!-- Include Socket.IO client library -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.5.1/socket.io.min.js"></script>
+  
+  <!-- Hidden pull-in menu -->
+  <div id="pullMenu">
+    <h3 style="margin:0 0 10px 0;">Menu</h3>
+    <button id="clearBtn">Clear Drawing</button>
+    <button id="hideMenuBtn">Hide Menu</button>
+  </div>
+  <!-- Handle to reveal the pull-in menu -->
+  <div id="menuHandle"></div>
+  
   <script>
-    const socket = io();
     const canvas = document.getElementById('canvas');
     const ctx = canvas.getContext('2d');
     let drawing = false;
     let paths = [];
     let currentPath = [];
     
-    // Convert input coordinates to canvas coordinates,
-    // taking into account the scaling between the intrinsic size (1920x1080) and displayed size.
+    // Convert event coordinates to canvas coordinates,
+    // accounting for scaling between intrinsic (1920x1080) and displayed size.
     function getMousePos(evt) {
       const rect = canvas.getBoundingClientRect();
       const scaleX = canvas.width / rect.width;
@@ -110,12 +149,12 @@
       ctx.lineWidth = 4;
       ctx.lineJoin = 'round';
       ctx.lineCap = 'round';
-      ctx.strokeStyle = '#FFEA00';
+      ctx.strokeStyle = '#FFEA00'; // Yellow drawing color
       
       paths.forEach(path => {
         ctx.beginPath();
         path.forEach((point, i) => {
-          if (i === 0) {
+          if(i === 0) {
             ctx.moveTo(point.x, point.y);
           } else {
             ctx.lineTo(point.x, point.y);
@@ -124,10 +163,10 @@
         ctx.stroke();
       });
       
-      if (currentPath.length) {
+      if(currentPath.length) {
         ctx.beginPath();
         currentPath.forEach((point, i) => {
-          if (i === 0) {
+          if(i === 0) {
             ctx.moveTo(point.x, point.y);
           } else {
             ctx.lineTo(point.x, point.y);
@@ -137,11 +176,30 @@
       }
     }
     
-    // Listen for the "clearCanvas" event from the server and clear the drawing.
-    socket.on('clearCanvas', () => {
+    // Pull-in menu functionality
+    const pullMenu = document.getElementById('pullMenu');
+    const menuHandle = document.getElementById('menuHandle');
+    const clearBtn = document.getElementById('clearBtn');
+    const hideMenuBtn = document.getElementById('hideMenuBtn');
+    
+    // Show the menu when the handle is clicked
+    menuHandle.addEventListener('click', () => {
+      pullMenu.style.left = '0';
+    });
+    
+    // Hide the menu when the hide button is clicked
+    hideMenuBtn.addEventListener('click', () => {
+      pullMenu.style.left = '-160px';
+    });
+    
+    // Clear the drawing when the clear button is pressed and then auto-hide the menu.
+    clearBtn.addEventListener('click', () => {
       paths = [];
       currentPath = [];
       redraw();
+      setTimeout(() => {
+        pullMenu.style.left = '-160px';
+      }, 500);
     });
   </script>
 </body>
