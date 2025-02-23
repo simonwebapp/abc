@@ -13,12 +13,13 @@
       overflow: hidden !important;
       background: black !important;
     }
-    /* Hide scrollbars in WebKit-based browsers */
+    /* Hide scrollbars in WebKit browsers */
     ::-webkit-scrollbar {
       display: none !important;
     }
     /* The canvas fills the viewport.
-       Its intrinsic size is 1920x1080. */
+       Its intrinsic size is 1920x1080.
+       It has a background image and a custom red circle cursor. */
     #canvas {
       display: block;
       width: 100vw;
@@ -27,11 +28,11 @@
       background-size: cover;
       cursor: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxNiIgaGVpZ2h0PSIxNiI+PGNpcmNsZSBjeD0iOCIgY3k9IjgiIHI9IjgiIGZpbGw9InJlZCIvPjwvc3ZnPg==") 8 8, auto;
     }
-    /* Hidden pull-in menu: initially off-screen to the left */
+    /* The pull-in menu, initially hidden off-screen */
     #pullMenu {
       position: fixed;
       top: 0;
-      left: -200px; /* Slightly wider menu, adjust as needed */
+      left: -200px;  /* Width of the menu is 200px */
       width: 200px;
       height: 100vh;
       background: rgba(0, 0, 0, 0.8);
@@ -47,22 +48,22 @@
       margin-top: 20px;
       cursor: pointer;
     }
-    /* A more visible handle along the left edge to reveal the menu */
-    #menuHandle {
+    /* The menu zone covers the left 50px of the screen.
+       It's transparent but intercepts clicks/touches to open the menu. */
+    #menuZone {
       position: fixed;
-      top: 50%;
+      top: 0;
       left: 0;
-      width: 30px;
-      height: 60px;
-      background: rgba(255, 0, 0, 0.8); /* Bright red */
-      border: 2px solid white;
-      cursor: pointer;
+      width: 50px;
+      height: 100vh;
       z-index: 1003;
-      transform: translateY(-50%);
+      background: transparent;
+      cursor: pointer;
     }
   </style>
 </head>
 <body>
+  <!-- The drawing canvas -->
   <canvas id="canvas" width="1920" height="1080"></canvas>
   
   <!-- Hidden pull-in menu -->
@@ -72,8 +73,8 @@
     <button id="hideMenuBtn">Hide Menu</button>
   </div>
   
-  <!-- Handle to reveal the pull-in menu -->
-  <div id="menuHandle"></div>
+  <!-- The left 50px menu zone (invisible) -->
+  <div id="menuZone"></div>
   
   <script>
     const canvas = document.getElementById('canvas');
@@ -82,7 +83,8 @@
     let paths = [];
     let currentPath = [];
     
-    // Convert input coordinates to canvas coordinates, accounting for scaling.
+    // Convert event coordinates to canvas coordinates,
+    // accounting for scaling between the intrinsic (1920x1080) and displayed sizes.
     function getMousePos(evt) {
       const rect = canvas.getBoundingClientRect();
       const scaleX = canvas.width / rect.width;
@@ -101,8 +103,9 @@
       };
     }
     
-    // Mouse events
+    // Prevent drawing if the event starts in the left 50px (the menu zone)
     canvas.addEventListener('mousedown', (evt) => {
+      if (evt.clientX < 50) return;  // Do not start drawing if in the menu zone
       drawing = true;
       currentPath = [];
       currentPath.push(getMousePos(evt));
@@ -123,8 +126,10 @@
     canvas.addEventListener('mouseup', endDrawing);
     canvas.addEventListener('mouseleave', endDrawing);
     
-    // Touch events for mobile devices
+    // Touch events for mobile devices. (Touch events should not fire if within menu zone due to the overlay.)
     canvas.addEventListener('touchstart', (evt) => {
+      // If the touch starts within the left 50px, do nothing (the menuZone will handle it)
+      if (evt.touches[0].clientX < 50) return;
       evt.preventDefault();
       drawing = true;
       currentPath = [];
@@ -151,7 +156,7 @@
       ctx.lineWidth = 4;
       ctx.lineJoin = 'round';
       ctx.lineCap = 'round';
-      ctx.strokeStyle = '#FFEA00'; // Yellow drawing color
+      ctx.strokeStyle = '#FFEA00';  // Yellow drawing color
       
       paths.forEach(path => {
         ctx.beginPath();
@@ -180,21 +185,22 @@
     
     // Pull-in menu functionality
     const pullMenu = document.getElementById('pullMenu');
-    const menuHandle = document.getElementById('menuHandle');
+    const menuZone = document.getElementById('menuZone');
     const clearBtn = document.getElementById('clearBtn');
     const hideMenuBtn = document.getElementById('hideMenuBtn');
     
-    // Show the menu when the handle is clicked
-    menuHandle.addEventListener('click', () => {
+    // When the menu zone is clicked, slide the pull-in menu into view.
+    menuZone.addEventListener('click', () => {
       pullMenu.style.left = '0';
     });
     
-    // Hide the menu when the hide button is clicked
+    // Hide the menu when the "Hide Menu" button is clicked.
     hideMenuBtn.addEventListener('click', () => {
       pullMenu.style.left = '-200px';
     });
     
-    // Clear the drawing when the clear button is pressed and then auto-hide the menu.
+    // Clear the drawing when the "Clear Drawing" button is pressed,
+    // then auto-hide the menu after a short delay.
     clearBtn.addEventListener('click', () => {
       paths = [];
       currentPath = [];
