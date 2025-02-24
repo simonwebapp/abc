@@ -2,9 +2,8 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Drawing App with Vertical Icon Menu</title>
+  <title>Drawing App with Color & Size Menu</title>
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-
   <style>
     html, body {
       margin: 0 !important;
@@ -20,8 +19,7 @@
     ::-webkit-scrollbar {
       display: none !important;
     }
-
-    /* The drawing canvas fills the viewport. */
+    /* The canvas fills the viewport. Intrinsic size is 1920x1080. */
     #canvas {
       display: block;
       width: 100vw;
@@ -30,15 +28,14 @@
       background-size: cover;
       cursor: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxNiIgaGVpZ2h0PSIxNiI+PGNpcmNsZSBjeD0iOCIgY3k9IjgiIHI9IjgiIGZpbGw9InJlZCIvPjwvc3ZnPg==") 8 8, auto;
     }
-
-    /* Pull-in menu: vertical layout, icons stacked.
-       Positioned off-screen to the left, top ~30% so it's higher on the screen. */
+    /* Pull-in menu: placed at top=100px, off-screen to the left (-200px).
+       It has vertical layout for color + stroke-size + trash + arrow. */
     #pullMenu {
       position: fixed;
-      top: 30%;               /* Higher than middle (50%) */
-      left: -200px;           /* Hidden off-screen */
+      top: 100px;
+      left: -200px; /* Hidden off-screen initially */
       width: 200px;
-      height: 150px;
+      height: 500px;
       background: transparent;
       display: flex;
       flex-direction: column;
@@ -46,15 +43,12 @@
       align-items: center;
       z-index: 1002;
       transition: left 0.3s ease;
-      user-select: none;
-      -webkit-user-select: none;
-      -webkit-touch-callout: none;
       -webkit-user-drag: none;
+      -webkit-touch-callout: none;
       -ms-user-select: none;
     }
-    /* Style the icon buttons */
     #pullMenu button {
-      font-size: 24px;
+      font-size: 36px;  /* 20% bigger than before */
       padding: 10px;
       cursor: pointer;
       background: none;
@@ -65,7 +59,7 @@
       -webkit-user-drag: none;
       -ms-user-select: none;
     }
-    /* Left edge drag area */
+    /* Left-edge drag area to reveal the menu */
     #menuZone {
       position: fixed;
       top: 0;
@@ -81,23 +75,40 @@
 <body onselectstart="return false;">
   <canvas id="canvas" width="1920" height="1080"></canvas>
 
-  <!-- Vertical icon menu (trash + arrow) -->
+  <!-- Pull-in menu with color buttons, stroke-size buttons, trash icon, and hide arrow -->
   <div id="pullMenu">
-    <button id="clearBtn" draggable="false">🗑 DEL</button>
+    <!-- Colors: red, blue, green, yellow -->
+    <button id="colorRed"   draggable="false">🔴</button>
+    <button id="colorBlue"  draggable="false">🔵</button>
+    <button id="colorGreen" draggable="false">🟢</button>
+    <button id="colorYellow"draggable="false">🟡</button>
+
+    <!-- Stroke sizes: S, M, L, XL -->
+    <button id="sizeS"  draggable="false">S</button>
+    <button id="sizeM"  draggable="false">M</button>
+    <button id="sizeL"  draggable="false">L</button>
+    <button id="sizeXL" draggable="false">XL</button>
+
+    <!-- Trash can and arrow -->
+    <button id="clearBtn"    draggable="false">🗑</button>
     <button id="hideMenuBtn" draggable="false">←</button>
   </div>
 
-  <!-- Drag area for revealing the menu -->
+  <!-- Invisible drag area for revealing the menu -->
   <div id="menuZone"></div>
 
   <script>
+    // Default color & stroke size (reset on page refresh)
+    let currentColor = '#FFEA00'; // Yellow
+    let strokeSize   = 4;
+
     const canvas = document.getElementById('canvas');
     const ctx = canvas.getContext('2d');
     let drawing = false;
     let paths = [];
     let currentPath = [];
 
-    // Convert event coords to canvas coords, accounting for scaling.
+    // Convert event coords to canvas coords, accounting for scaling
     function getMousePos(evt) {
       const rect = canvas.getBoundingClientRect();
       const scaleX = canvas.width / rect.width;
@@ -116,7 +127,7 @@
       };
     }
 
-    // Restrict drawing if starting in left 50px
+    // Start drawing only if the user isn't in the left 50px zone
     canvas.addEventListener('mousedown', (evt) => {
       if (evt.clientX < 50) return;
       drawing = true;
@@ -161,11 +172,12 @@
 
     function redraw() {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-      ctx.lineWidth = 4;
+      ctx.lineWidth = strokeSize;
       ctx.lineJoin = 'round';
       ctx.lineCap = 'round';
-      ctx.strokeStyle = '#FFEA00';
+      ctx.strokeStyle = currentColor;
 
+      // Draw saved paths
       paths.forEach(path => {
         ctx.beginPath();
         path.forEach((point, i) => {
@@ -175,6 +187,7 @@
         ctx.stroke();
       });
 
+      // Draw current path
       if (currentPath.length) {
         ctx.beginPath();
         currentPath.forEach((point, i) => {
@@ -185,11 +198,20 @@
       }
     }
 
-    // Menu logic
-    const pullMenu = document.getElementById('pullMenu');
-    const menuZone = document.getElementById('menuZone');
-    const clearBtn = document.getElementById('clearBtn');
-    const hideMenuBtn = document.getElementById('hideMenuBtn');
+    // Pull-in menu logic
+    const pullMenu     = document.getElementById('pullMenu');
+    const menuZone     = document.getElementById('menuZone');
+    const clearBtn     = document.getElementById('clearBtn');
+    const hideMenuBtn  = document.getElementById('hideMenuBtn');
+    const colorRed     = document.getElementById('colorRed');
+    const colorBlue    = document.getElementById('colorBlue');
+    const colorGreen   = document.getElementById('colorGreen');
+    const colorYellow  = document.getElementById('colorYellow');
+    const sizeS        = document.getElementById('sizeS');
+    const sizeM        = document.getElementById('sizeM');
+    const sizeL        = document.getElementById('sizeL');
+    const sizeXL       = document.getElementById('sizeXL');
+
     let dragStartX = null;
     let menuTimeout = null;
 
@@ -202,7 +224,7 @@
       }, 5000);
     }
 
-    // Listen for drags from the left edge
+    // Drag detection from left edge
     document.addEventListener('mousedown', (evt) => {
       if (evt.clientX < 50) {
         dragStartX = evt.clientX;
@@ -240,16 +262,16 @@
       dragStartX = null;
     });
 
-    // Prevent text highlighting or dragging inside the menu
+    // Prevent text selection inside the menu
     pullMenu.addEventListener('mousedown', (evt) => evt.preventDefault());
 
-    // Hide button
+    // Hide menu on arrow click
     hideMenuBtn.addEventListener('click', () => {
       pullMenu.style.left = '-200px';
       if (menuTimeout) clearTimeout(menuTimeout);
     });
 
-    // Clear the drawing, then hide menu
+    // Clear the drawing
     clearBtn.addEventListener('click', () => {
       paths = [];
       currentPath = [];
@@ -258,6 +280,18 @@
         pullMenu.style.left = '-200px';
       }, 500);
     });
+
+    // Color selection
+    colorRed.addEventListener('click',   () => { currentColor = 'red';    });
+    colorBlue.addEventListener('click',  () => { currentColor = 'blue';   });
+    colorGreen.addEventListener('click', () => { currentColor = 'green';  });
+    colorYellow.addEventListener('click',() => { currentColor = '#FFEA00';});
+
+    // Stroke size selection
+    sizeS.addEventListener('click',  () => { strokeSize = 2;  });
+    sizeM.addEventListener('click',  () => { strokeSize = 4;  });
+    sizeL.addEventListener('click',  () => { strokeSize = 8;  });
+    sizeXL.addEventListener('click', () => { strokeSize = 12; });
   </script>
 </body>
 </html>
