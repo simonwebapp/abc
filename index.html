@@ -2,7 +2,9 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Drawing App with Brush Size Menu</title>
+  <title>Drawing App with Trashcan Menu</title>
+  <!-- Enable fullscreen mode on Android when added to home screen -->
+  <meta name="mobile-web-app-capable" content="yes">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
   <style>
     html, body {
@@ -19,7 +21,7 @@
     ::-webkit-scrollbar {
       display: none !important;
     }
-    /* The drawing canvas: fills the viewport with the background image.
+    /* The drawing canvas fills the viewport.
        Its intrinsic size is 1920x1080. */
     #canvas {
       display: block;
@@ -29,65 +31,25 @@
       background-size: cover;
       cursor: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxNiIgaGVpZ2h0PSIxNiI+PGNpcmNsZSBjeD0iOCIgY3k9IjgiIHI9IjgiIGZpbGw9InJlZCIvPjwvc3ZnPg==") 8 8, auto;
     }
-    /* Pull-in menu: vertical layout, placed at top 100px.
-       No background overlay, just icon buttons arranged vertically. */
+    /* Pull-in menu: vertical layout, placed at top 100px,
+       hidden off-screen to the left (-200px), and only shows the trashcan. */
     #pullMenu {
       position: fixed;
       top: 100px;
-      left: -200px; /* Hidden off-screen initially */
+      left: -200px; /* Initially hidden */
       width: 200px;
-      height: 400px;
+      height: 100px;
       display: flex;
-      flex-direction: column;
-      justify-content: space-around;
+      justify-content: center;
       align-items: center;
       z-index: 1002;
       transition: left 0.3s ease;
       -webkit-user-drag: none;
       -webkit-touch-callout: none;
     }
-    /* Brush-size buttons as white dots (no text), sized proportionally.
-       They are centered in a 50x50 button area. */
-    .brushBtn {
-      width: 50px;
-      height: 50px;
-      border: 2px solid white;
-      background: none;
-      cursor: pointer;
-      user-select: none;
-      -webkit-user-select: none;
-      -ms-user-select: none;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-    #sizeS::before {
-      content: "";
-      display: block;
-      width: 10px;
-      height: 10px;
-      border-radius: 50%;
-      background: white;
-    }
-    #sizeM::before {
-      content: "";
-      display: block;
-      width: 20px;
-      height: 20px;
-      border-radius: 50%;
-      background: white;
-    }
-    #sizeL::before {
-      content: "";
-      display: block;
-      width: 30px;
-      height: 30px;
-      border-radius: 50%;
-      background: white;
-    }
-    /* Trash can and hide arrow buttons */
-    #clearBtn, #hideMenuBtn {
-      font-size: 36px;
+    /* Trashcan button styling – 20% bigger than before */
+    #clearBtn {
+      font-size: 48px;
       background: none;
       border: none;
       color: white;
@@ -112,29 +74,23 @@
 <body onselectstart="return false;">
   <canvas id="canvas" width="1920" height="1080"></canvas>
   
-  <!-- Pull-in menu with vertical icon buttons -->
+  <!-- Pull-in menu showing only the trashcan button -->
   <div id="pullMenu">
-    <!-- Brush-size selection: small, medium, large -->
-    <button id="sizeS" class="brushBtn" title="Small"></button>
-    <button id="sizeM" class="brushBtn" title="Medium"></button>
-    <button id="sizeL" class="brushBtn" title="Large"></button>
-    <!-- Clear (trash can) and hide (arrow) buttons -->
     <button id="clearBtn" title="Clear Drawing">🗑</button>
-    <button id="hideMenuBtn" title="Hide Menu">←</button>
   </div>
   
   <!-- Invisible left-edge drag area -->
   <div id="menuZone"></div>
   
   <script>
-    // Default settings: yellow drawing color (unchanged) and medium stroke size = 4.
+    // Default settings: yellow drawing color and medium stroke size = 4.
     let currentStrokeSize = 4;
     const defaultColor = '#FFEA00';
     
     const canvas = document.getElementById('canvas');
     const ctx = canvas.getContext('2d');
     let drawing = false;
-    // Each stroke is stored as an object: { points: [...], stroke: number }
+    // Each stroke is stored as: { points: [...], stroke: number }
     let strokes = [];
     let currentPoints = [];
     
@@ -157,11 +113,12 @@
       };
     }
     
-    // Start drawing only if starting point is below x = 310.
+    // Start drawing only if the starting point is not in the left 50px 
+    // and its x-coordinate is at least 310.
     canvas.addEventListener('mousedown', (evt) => {
-      if (evt.clientX < 50) return; // Prevent drawing in left 50px.
+      if (evt.clientX < 50) return;
       const pos = getMousePos(evt);
-      if (pos.x < 310) return; // Block drawing above x=310.
+      if (pos.x < 310) return;
       drawing = true;
       currentPoints = [];
       currentPoints.push(pos);
@@ -180,7 +137,7 @@
     canvas.addEventListener('mouseup', endDrawing);
     canvas.addEventListener('mouseleave', endDrawing);
     
-    // Touch events (ignore touches in the left 50px and above x=310)
+    // Touch events (ignore touches in the left 50px and if x < 310)
     canvas.addEventListener('touchstart', (evt) => {
       if (evt.touches[0].clientX < 50) return;
       const pos = getMousePos(evt);
@@ -219,8 +176,8 @@
         });
         ctx.stroke();
       });
-      // Draw current stroke
-      if(currentPoints.length) {
+      // Draw the current stroke
+      if (currentPoints.length) {
         ctx.beginPath();
         ctx.lineWidth = currentStrokeSize;
         ctx.lineJoin = 'round';
@@ -238,11 +195,6 @@
     const pullMenu = document.getElementById('pullMenu');
     const menuZone = document.getElementById('menuZone');
     const clearBtn = document.getElementById('clearBtn');
-    const hideMenuBtn = document.getElementById('hideMenuBtn');
-    const sizeS = document.getElementById('sizeS');
-    const sizeM = document.getElementById('sizeM');
-    const sizeL = document.getElementById('sizeL');
-    
     let dragStartX = null;
     let menuTimeout = null;
     
@@ -254,7 +206,7 @@
       }, 5000);
     }
     
-    // Drag detection for revealing the menu
+    // Drag detection for revealing the menu (mouse)
     document.addEventListener('mousedown', (evt) => {
       if (evt.clientX < 50) {
         dragStartX = evt.clientX;
@@ -272,6 +224,7 @@
     document.addEventListener('mouseup', () => {
       dragStartX = null;
     });
+    // Touch-based drag detection
     document.addEventListener('touchstart', (evt) => {
       if (evt.touches[0].clientX < 50) {
         dragStartX = evt.touches[0].clientX;
@@ -293,13 +246,7 @@
     // Prevent text selection in the menu
     pullMenu.addEventListener('mousedown', (evt) => evt.preventDefault());
     
-    // Hide menu on arrow button click
-    hideMenuBtn.addEventListener('click', () => {
-      pullMenu.style.left = '-200px';
-      if (menuTimeout) clearTimeout(menuTimeout);
-    });
-    
-    // Clear the drawing when the trash can button is clicked
+    // Clear the drawing when the trash can button is clicked and auto-hide the menu.
     clearBtn.addEventListener('click', () => {
       strokes = [];
       currentPoints = [];
@@ -308,29 +255,6 @@
         pullMenu.style.left = '-200px';
       }, 500);
     });
-    
-    // Brush size selection using white dot icons
-    sizeS.addEventListener('click', () => {
-      currentStrokeSize = 2;
-      // Indicate selection (optional: add visual cue)
-      sizeS.style.borderColor = 'yellow';
-      sizeM.style.borderColor = 'white';
-      sizeL.style.borderColor = 'white';
-    });
-    sizeM.addEventListener('click', () => {
-      currentStrokeSize = 4;
-      sizeS.style.borderColor = 'white';
-      sizeM.style.borderColor = 'yellow';
-      sizeL.style.borderColor = 'white';
-    });
-    sizeL.addEventListener('click', () => {
-      currentStrokeSize = 8;
-      sizeS.style.borderColor = 'white';
-      sizeM.style.borderColor = 'white';
-      sizeL.style.borderColor = 'yellow';
-    });
-    // Set default selection (medium)
-    sizeM.style.borderColor = 'yellow';
   </script>
 </body>
 </html>
