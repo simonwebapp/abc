@@ -157,7 +157,7 @@
       };
     }
     
-    // Start drawing only if starting point is below y = 310.
+    // Start drawing only if starting point is below x = 310.
     canvas.addEventListener('mousedown', (evt) => {
       if (evt.clientX < 50) return; // Prevent drawing in left 50px.
       const pos = getMousePos(evt);
@@ -180,11 +180,11 @@
     canvas.addEventListener('mouseup', endDrawing);
     canvas.addEventListener('mouseleave', endDrawing);
     
-    // Touch events (ignore touches in the left 50px and above y=310)
+    // Touch events (ignore touches in the left 50px and above x=310)
     canvas.addEventListener('touchstart', (evt) => {
       if (evt.touches[0].clientX < 50) return;
       const pos = getMousePos(evt);
-      if (pos.y < 310) return;
+      if (pos.x < 310) return;
       evt.preventDefault();
       drawing = true;
       currentPoints = [];
