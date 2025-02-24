@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Drawing App with Brush Size Menu</title>
+  <title>Drawing App with Trashcan Menu</title>
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
   <style>
     html, body {
@@ -19,75 +19,36 @@
     ::-webkit-scrollbar {
       display: none !important;
     }
-    /* The drawing canvas: fills the viewport with the background image.
-       Its intrinsic size is 1920x1080. */
+    /* Canvas fills the viewport, intrinsic size 1920x1080.
+       Use a relative URL if the image is in your repo, e.g., 'BG.png' */
     #canvas {
       display: block;
       width: 100vw;
       height: 100vh;
-      background: url('BG_V4.png') no-repeat center center;
+      background: url('BG.png') no-repeat center center;
       background-size: cover;
       cursor: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxNiIgaGVpZ2h0PSIxNiI+PGNpcmNsZSBjeD0iOCIgY3k9IjgiIHI9IjgiIGZpbGw9InJlZCIvPjwvc3ZnPg==") 8 8, auto;
     }
-    /* Pull-in menu: vertical layout, placed at top 100px.
-       No background overlay, just icon buttons arranged vertically. */
+    /* Pull-in menu: Only shows a trash can icon.
+       Positioned at top:100px; hidden off-screen to the left (-200px).
+       No background overlay; just the icon. */
     #pullMenu {
       position: fixed;
       top: 100px;
-      left: -200px; /* Hidden off-screen initially */
+      left: -200px;
       width: 200px;
-      height: 400px;
+      height: 100px;
       display: flex;
-      flex-direction: column;
-      justify-content: space-around;
+      justify-content: center;
       align-items: center;
       z-index: 1002;
       transition: left 0.3s ease;
       -webkit-user-drag: none;
       -webkit-touch-callout: none;
     }
-    /* Brush-size buttons as white dots (no text), sized proportionally.
-       They are centered in a 50x50 button area. */
-    .brushBtn {
-      width: 50px;
-      height: 50px;
-      border: 2px solid white;
-      background: none;
-      cursor: pointer;
-      user-select: none;
-      -webkit-user-select: none;
-      -ms-user-select: none;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-    #sizeS::before {
-      content: "";
-      display: block;
-      width: 10px;
-      height: 10px;
-      border-radius: 50%;
-      background: white;
-    }
-    #sizeM::before {
-      content: "";
-      display: block;
-      width: 20px;
-      height: 20px;
-      border-radius: 50%;
-      background: white;
-    }
-    #sizeL::before {
-      content: "";
-      display: block;
-      width: 30px;
-      height: 30px;
-      border-radius: 50%;
-      background: white;
-    }
-    /* Trash can and hide arrow buttons */
-    #clearBtn, #hideMenuBtn {
-      font-size: 36px;
+    /* Trash can button: Increase icon size by 20% (font-size 48px) */
+    #clearBtn {
+      font-size: 48px;
       background: none;
       border: none;
       color: white;
@@ -96,7 +57,7 @@
       -webkit-user-select: none;
       -ms-user-select: none;
     }
-    /* Left-edge drag area: reserved for revealing the menu */
+    /* Drag zone on left edge (50px wide) */
     #menuZone {
       position: fixed;
       top: 0;
@@ -112,33 +73,27 @@
 <body onselectstart="return false;">
   <canvas id="canvas" width="1920" height="1080"></canvas>
   
-  <!-- Pull-in menu with vertical icon buttons -->
+  <!-- Pull-in menu containing only the trash can -->
   <div id="pullMenu">
-    <!-- Brush-size selection: small, medium, large -->
-    <button id="sizeS" class="brushBtn" title="Small"></button>
-    <button id="sizeM" class="brushBtn" title="Medium"></button>
-    <button id="sizeL" class="brushBtn" title="Large"></button>
-    <!-- Clear (trash can) and hide (arrow) buttons -->
     <button id="clearBtn" title="Clear Drawing">🗑</button>
-    <button id="hideMenuBtn" title="Hide Menu">←</button>
   </div>
   
-  <!-- Invisible left-edge drag area -->
+  <!-- Invisible drag area for revealing the menu -->
   <div id="menuZone"></div>
   
   <script>
-    // Default settings: yellow drawing color (unchanged) and medium stroke size = 4.
-    let currentStrokeSize = 4;
+    // Default drawing settings: yellow color, medium stroke size
     const defaultColor = '#FFEA00';
+    let currentStrokeSize = 4;
     
     const canvas = document.getElementById('canvas');
     const ctx = canvas.getContext('2d');
     let drawing = false;
-    // Each stroke is stored as an object: { points: [...], stroke: number }
+    // Each stroke stored as: { points: [...], stroke: number }
     let strokes = [];
     let currentPoints = [];
     
-    // Convert event coordinates to canvas coordinates, accounting for scaling.
+    // Convert event coordinates to canvas coordinates (account for scaling)
     function getMousePos(evt) {
       const rect = canvas.getBoundingClientRect();
       const scaleX = canvas.width / rect.width;
@@ -157,11 +112,12 @@
       };
     }
     
-    // Start drawing only if starting point is below x = 310.
+    // Prevent drawing if the initial point is in the left 50px or if x < 310 (if desired)
     canvas.addEventListener('mousedown', (evt) => {
-      if (evt.clientX < 50) return; // Prevent drawing in left 50px.
+      if (evt.clientX < 50) return;
       const pos = getMousePos(evt);
-      if (pos.x < 310) return; // Block drawing above x=310.
+      // Uncomment the next line if you want to block drawing for pos.x < 310:
+      // if (pos.x < 310) return;
       drawing = true;
       currentPoints = [];
       currentPoints.push(pos);
@@ -180,15 +136,13 @@
     canvas.addEventListener('mouseup', endDrawing);
     canvas.addEventListener('mouseleave', endDrawing);
     
-    // Touch events (ignore touches in the left 50px and above x=310)
+    // Touch events: similarly prevent drawing if starting in left 50px.
     canvas.addEventListener('touchstart', (evt) => {
       if (evt.touches[0].clientX < 50) return;
-      const pos = getMousePos(evt);
-      if (pos.x < 310) return;
       evt.preventDefault();
       drawing = true;
       currentPoints = [];
-      currentPoints.push(pos);
+      currentPoints.push(getMousePos(evt));
     });
     canvas.addEventListener('touchmove', (evt) => {
       evt.preventDefault();
@@ -214,20 +168,20 @@
         ctx.lineCap = 'round';
         ctx.strokeStyle = defaultColor;
         strokeObj.points.forEach((point, i) => {
-          if (i === 0) ctx.moveTo(point.x, point.y);
+          if(i === 0) ctx.moveTo(point.x, point.y);
           else ctx.lineTo(point.x, point.y);
         });
         ctx.stroke();
       });
-      // Draw current stroke
-      if(currentPoints.length) {
+      // Draw current stroke in progress
+      if (currentPoints.length) {
         ctx.beginPath();
         ctx.lineWidth = currentStrokeSize;
         ctx.lineJoin = 'round';
         ctx.lineCap = 'round';
         ctx.strokeStyle = defaultColor;
         currentPoints.forEach((point, i) => {
-          if (i === 0) ctx.moveTo(point.x, point.y);
+          if(i === 0) ctx.moveTo(point.x, point.y);
           else ctx.lineTo(point.x, point.y);
         });
         ctx.stroke();
@@ -238,14 +192,10 @@
     const pullMenu = document.getElementById('pullMenu');
     const menuZone = document.getElementById('menuZone');
     const clearBtn = document.getElementById('clearBtn');
-    const hideMenuBtn = document.getElementById('hideMenuBtn');
-    const sizeS = document.getElementById('sizeS');
-    const sizeM = document.getElementById('sizeM');
-    const sizeL = document.getElementById('sizeL');
-    
     let dragStartX = null;
     let menuTimeout = null;
     
+    // Function to show the menu and auto-hide after 5 seconds
     function showMenu() {
       pullMenu.style.left = '0';
       if (menuTimeout) clearTimeout(menuTimeout);
@@ -254,7 +204,7 @@
       }, 5000);
     }
     
-    // Drag detection for revealing the menu
+    // Drag detection for revealing the menu (for mouse)
     document.addEventListener('mousedown', (evt) => {
       if (evt.clientX < 50) {
         dragStartX = evt.clientX;
@@ -272,6 +222,8 @@
     document.addEventListener('mouseup', () => {
       dragStartX = null;
     });
+    
+    // Touch-based drag detection
     document.addEventListener('touchstart', (evt) => {
       if (evt.touches[0].clientX < 50) {
         dragStartX = evt.touches[0].clientX;
@@ -293,13 +245,7 @@
     // Prevent text selection in the menu
     pullMenu.addEventListener('mousedown', (evt) => evt.preventDefault());
     
-    // Hide menu on arrow button click
-    hideMenuBtn.addEventListener('click', () => {
-      pullMenu.style.left = '-200px';
-      if (menuTimeout) clearTimeout(menuTimeout);
-    });
-    
-    // Clear the drawing when the trash can button is clicked
+    // Clear drawing when the trash can button is clicked; auto-hide menu afterward.
     clearBtn.addEventListener('click', () => {
       strokes = [];
       currentPoints = [];
@@ -308,29 +254,6 @@
         pullMenu.style.left = '-200px';
       }, 500);
     });
-    
-    // Brush size selection using white dot icons
-    sizeS.addEventListener('click', () => {
-      currentStrokeSize = 2;
-      // Indicate selection (optional: add visual cue)
-      sizeS.style.borderColor = 'yellow';
-      sizeM.style.borderColor = 'white';
-      sizeL.style.borderColor = 'white';
-    });
-    sizeM.addEventListener('click', () => {
-      currentStrokeSize = 4;
-      sizeS.style.borderColor = 'white';
-      sizeM.style.borderColor = 'yellow';
-      sizeL.style.borderColor = 'white';
-    });
-    sizeL.addEventListener('click', () => {
-      currentStrokeSize = 8;
-      sizeS.style.borderColor = 'white';
-      sizeM.style.borderColor = 'white';
-      sizeL.style.borderColor = 'yellow';
-    });
-    // Set default selection (medium)
-    sizeM.style.borderColor = 'yellow';
   </script>
 </body>
 </html>
