@@ -4,7 +4,6 @@
   <meta charset="UTF-8">
   <title>Drawing App with Right-Side Menu</title>
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-  <!-- Meta tag to encourage fullscreen when added to home screen -->
   <meta name="mobile-web-app-capable" content="yes">
   <style>
     html, body {
@@ -21,7 +20,8 @@
     ::-webkit-scrollbar {
       display: none !important;
     }
-    /* The drawing canvas: fills the viewport, intrinsic size 1920x1080 */
+    /* The drawing canvas fills the viewport.
+       Intrinsic size is 1920x1080. */
     #canvas {
       display: block;
       width: 100vw;
@@ -30,12 +30,12 @@
       background-size: cover;
       cursor: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxNiIgaGVpZ2h0PSIxNiI+PGNpcmNsZSBjeD0iOCIgY3k9IjgiIHI9IjgiIGZpbGw9InJlZCIvPjwvc3ZnPg==") 8 8, auto;
     }
-    /* Pull-in menu: vertical layout, positioned on the far right.
+    /* Pull-in menu on the far right, vertical layout, placed at top:100px.
        Initially hidden off-screen to the right (-200px). */
     #pullMenu {
       position: fixed;
       top: 100px;
-      right: -200px; /* Hidden off-screen on the right */
+      right: -200px;
       width: 200px;
       height: 100px;
       display: flex;
@@ -47,7 +47,8 @@
       -webkit-user-drag: none;
       -webkit-touch-callout: none;
     }
-    /* Menu buttons styling (icons only) */
+    /* Menu buttons: trash can and undo icon.
+       Font size increased 20% (set to 48px). */
     #clearBtn, #undoBtn {
       font-size: 48px;
       background: none;
@@ -58,7 +59,7 @@
       -webkit-user-select: none;
       -ms-user-select: none;
     }
-    /* Invisible right-edge drag area (50px wide) for revealing the menu */
+    /* Invisible right-edge drag area (50px wide) */
     #menuZone {
       position: fixed;
       top: 0;
@@ -84,20 +85,20 @@
   <div id="menuZone"></div>
   
   <script>
-    // Default drawing settings: yellow color and medium stroke size (4)
+    // Default settings: yellow drawing color and medium stroke size = 4.
     let currentStrokeSize = 4;
     const defaultColor = '#FFEA00';
     
     const canvas = document.getElementById('canvas');
     const ctx = canvas.getContext('2d');
     let drawing = false;
-    // Strokes will be stored as objects: { points: [...], stroke: number }
+    // Each stroke stored as { points: [...], stroke: number }
     let strokes = [];
     let currentPoints = [];
-    // Undo stack (we can push as many as needed)
+    // Undo stack for storing undone strokes (we push as many as occur)
     let undoStack = [];
     
-    // Convert event coordinates to canvas coordinates, accounting for scaling.
+    // Convert event coordinates to canvas coordinates (accounting for scaling).
     function getMousePos(evt) {
       const rect = canvas.getBoundingClientRect();
       const scaleX = canvas.width / rect.width;
@@ -116,11 +117,12 @@
       };
     }
     
-    // Start drawing only if starting point is not in the left 50px and x >= 310.
+    // Start drawing only if the starting point is not in the left 50px,
+    // and if the starting point's x-coordinate is at least 310.
     canvas.addEventListener('mousedown', (evt) => {
-      if (evt.clientX < 50) return; // Block drawing in left 50px.
+      if (evt.clientX < 50) return;
       const pos = getMousePos(evt);
-      if (pos.x < 310) return; // Block drawing if initial x < 310.
+      if (pos.x < 310) return;
       drawing = true;
       currentPoints = [];
       currentPoints.push(pos);
@@ -134,14 +136,14 @@
       if (!drawing) return;
       drawing = false;
       strokes.push({ points: [...currentPoints], stroke: currentStrokeSize });
-      // Push to undoStack as well
-      undoStack.push({ points: [...currentPoints], stroke: currentStrokeSize });
+      // Reset the undoStack whenever a new stroke is committed.
+      undoStack = [];
       currentPoints = [];
     }
     canvas.addEventListener('mouseup', endDrawing);
     canvas.addEventListener('mouseleave', endDrawing);
     
-    // Touch events (ignore touches in the left 50px and if x < 310)
+    // Touch events (ignore touches in the left 50px and if x < 310).
     canvas.addEventListener('touchstart', (evt) => {
       if (evt.touches[0].clientX < 50) return;
       const pos = getMousePos(evt);
@@ -162,13 +164,13 @@
       if (!drawing) return;
       drawing = false;
       strokes.push({ points: [...currentPoints], stroke: currentStrokeSize });
-      undoStack.push({ points: [...currentPoints], stroke: currentStrokeSize });
+      undoStack = [];
       currentPoints = [];
     });
     
     function redraw() {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-      // Draw each saved stroke using its own stroke size.
+      // Draw saved strokes
       strokes.forEach(strokeObj => {
         ctx.beginPath();
         ctx.lineWidth = strokeObj.stroke;
@@ -181,7 +183,7 @@
         });
         ctx.stroke();
       });
-      // Draw the current stroke in progress.
+      // Draw current stroke
       if (currentPoints.length) {
         ctx.beginPath();
         ctx.lineWidth = currentStrokeSize;
@@ -196,26 +198,15 @@
       }
     }
     
-    // Menu functionality on the right side.
+    // Menu functionality on the right.
     const pullMenu = document.getElementById('pullMenu');
     const menuZone = document.getElementById('menuZone');
     const clearBtn = document.getElementById('clearBtn');
-    const undoBtn = document.createElement('button');
-    undoBtn.id = 'undoBtn';
-    undoBtn.title = 'Undo Last Stroke';
-    undoBtn.style.fontSize = '48px';
-    undoBtn.style.background = 'none';
-    undoBtn.style.border = 'none';
-    undoBtn.style.color = 'white';
-    undoBtn.style.cursor = 'pointer';
-    undoBtn.textContent = '↺';
-    // Append the undo button to the pullMenu below the trash can.
-    pullMenu.appendChild(undoBtn);
+    const undoBtn = document.getElementById('undoBtn');
     
     let dragStartX = null;
     let menuTimeout = null;
     
-    // Show the menu and auto-hide after 5 seconds.
     function showMenu() {
       pullMenu.style.right = '0';
       if (menuTimeout) clearTimeout(menuTimeout);
@@ -224,7 +215,7 @@
       }, 5000);
     }
     
-    // Drag detection for revealing the menu (for mouse on right edge)
+    // Drag detection for revealing the menu (mouse on right edge)
     document.addEventListener('mousedown', (evt) => {
       if (evt.clientX > window.innerWidth - 50) {
         dragStartX = evt.clientX;
@@ -242,7 +233,7 @@
     document.addEventListener('mouseup', () => {
       dragStartX = null;
     });
-    // Touch-based drag detection for right edge.
+    // Touch-based drag detection for right edge
     document.addEventListener('touchstart', (evt) => {
       if (evt.touches[0].clientX > window.innerWidth - 50) {
         dragStartX = evt.touches[0].clientX;
@@ -264,6 +255,9 @@
     // Prevent text selection in the menu.
     pullMenu.addEventListener('mousedown', (evt) => evt.preventDefault());
     
+    // Hide menu on its auto-hide timer or if desired.
+    // (The menu auto-hides after 5 seconds via showMenu's timer.)
+    
     // Clear drawing when the trash can button is clicked.
     clearBtn.addEventListener('click', () => {
       strokes = [];
@@ -275,16 +269,43 @@
     });
     
     // Undo button functionality: remove the most recent stroke.
-    undoBtn.addEventListener('click', () => {
+    // Also, when the user clicks and holds the undo button, do not auto-hide.
+    undoBtn.addEventListener('mousedown', () => {
+      // Clear auto-hide timer while the button is held.
+      if (menuTimeout) clearTimeout(menuTimeout);
+    });
+    undoBtn.addEventListener('mouseup', () => {
+      // After release, perform undo and restart auto-hide timer.
       if (strokes.length > 0) {
         let removedStroke = strokes.pop();
-        // Optionally, push to an undo stack (if you want multiple undos).
-        // For now, we simply remove the last stroke.
+        undoStack.push(removedStroke);
+        // Optionally, limit undoStack to 10 strokes.
+        if (undoStack.length > 10) {
+          undoStack.shift();
+        }
         redraw();
       }
-      setTimeout(() => {
+      menuTimeout = setTimeout(() => {
         pullMenu.style.right = '-200px';
-      }, 500);
+      }, 5000);
+    });
+    
+    // Also add keyboard shortcut for undo (Z key).
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'z' || e.key === 'Z') {
+        e.preventDefault();
+        if (strokes.length > 0) {
+          let removedStroke = strokes.pop();
+          undoStack.push(removedStroke);
+          if (undoStack.length > 10) {
+            undoStack.shift();
+          }
+          redraw();
+          // Also, show the menu when undo is used via keyboard,
+          // and then auto-hide after 5 seconds.
+          showMenu();
+        }
+      }
     });
     
     // F5 refresh listener.
