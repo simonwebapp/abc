@@ -2,10 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>ABC Tegnemoment</title>
-  <!-- Enable fullscreen mode on Android when added to home screen -->
-  <link rel="manifest" href="manifest.json">
-  <meta name="mobile-web-app-capable" content="yes">
+  <title>Drawing App with Trashcan Menu</title>
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
   <style>
     html, body {
@@ -22,7 +19,7 @@
     ::-webkit-scrollbar {
       display: none !important;
     }
-    /* The drawing canvas fills the viewport.
+    /* The drawing canvas: fills the viewport with the background image.
        Its intrinsic size is 1920x1080. */
     #canvas {
       display: block;
@@ -32,25 +29,65 @@
       background-size: cover;
       cursor: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxNiIgaGVpZ2h0PSIxNiI+PGNpcmNsZSBjeD0iOCIgY3k9IjgiIHI9IjgiIGZpbGw9InJlZCIvPjwvc3ZnPg==") 8 8, auto;
     }
-    /* Pull-in menu: vertical layout, placed at top 100px,
-       hidden off-screen to the left (-200px), and only shows the trashcan. */
+    /* Pull-in menu: vertical layout, placed at top 100px.
+       No background overlay, just icon buttons arranged vertically. */
     #pullMenu {
       position: fixed;
       top: 100px;
-      left: -200px; /* Initially hidden */
+      left: -200px; /* Hidden off-screen initially */
       width: 200px;
-      height: 100px;
+      height: 400px;
       display: flex;
-      justify-content: center;
+      flex-direction: column;
+      justify-content: space-around;
       align-items: center;
       z-index: 1002;
       transition: left 0.3s ease;
       -webkit-user-drag: none;
       -webkit-touch-callout: none;
     }
-    /* Trashcan button styling – 20% bigger than before */
-    #clearBtn {
-      font-size: 48px;
+    /* Brush-size buttons as white dots (no text), sized proportionally.
+       They are centered in a 50x50 button area. */
+    .brushBtn {
+      width: 50px;
+      height: 50px;
+      border: 2px solid white;
+      background: none;
+      cursor: pointer;
+      user-select: none;
+      -webkit-user-select: none;
+      -ms-user-select: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    #sizeS::before {
+      content: "";
+      display: block;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: white;
+    }
+    #sizeM::before {
+      content: "";
+      display: block;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: white;
+    }
+    #sizeL::before {
+      content: "";
+      display: block;
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      background: white;
+    }
+    /* Trash can and hide arrow buttons */
+    #clearBtn, #hideMenuBtn {
+      font-size: 36px;
       background: none;
       border: none;
       color: white;
@@ -75,9 +112,15 @@
 <body onselectstart="return false;">
   <canvas id="canvas" width="1920" height="1080"></canvas>
   
-  <!-- Pull-in menu showing only the trashcan button -->
+  <!-- Pull-in menu with vertical icon buttons -->
   <div id="pullMenu">
+    <!-- Brush-size selection: small, medium, large -->
+    <button id="sizeS" class="brushBtn" title="Small"></button>
+    <button id="sizeM" class="brushBtn" title="Medium"></button>
+    <button id="sizeL" class="brushBtn" title="Large"></button>
+    <!-- Clear (trash can) and hide (arrow) buttons -->
     <button id="clearBtn" title="Clear Drawing">🗑</button>
+    <button id="hideMenuBtn" title="Hide Menu">←</button>
   </div>
   
   <!-- Invisible left-edge drag area -->
@@ -91,9 +134,11 @@
     const canvas = document.getElementById('canvas');
     const ctx = canvas.getContext('2d');
     let drawing = false;
-    // Each stroke is stored as: { points: [...], stroke: number }
+    // Each stroke is stored as an object: { points: [...], stroke: number }
     let strokes = [];
     let currentPoints = [];
+    // Undo stack for CTRL+Z (store up to 10 strokes)
+    let undoStack = [];
     
     // Convert event coordinates to canvas coordinates, accounting for scaling.
     function getMousePos(evt) {
@@ -114,12 +159,11 @@
       };
     }
     
-    // Start drawing only if the starting point is not in the left 50px 
-    // and its x-coordinate is at least 310.
+    // Start drawing only if starting point is below x = 310.
     canvas.addEventListener('mousedown', (evt) => {
-      if (evt.clientX < 50) return;
+      if (evt.clientX < 50) return; // Prevent drawing in left 50px.
       const pos = getMousePos(evt);
-      if (pos.x < 310) return;
+      if (pos.x < 310) return; // Block drawing if initial x < 310.
       drawing = true;
       currentPoints = [];
       currentPoints.push(pos);
@@ -133,6 +177,9 @@
       if (!drawing) return;
       drawing = false;
       strokes.push({ points: [...currentPoints], stroke: currentStrokeSize });
+      // When a stroke is completed, clear the undoStack (or push to it) as needed.
+      // Here, we'll clear the undoStack so that undo applies only to strokes drawn since the last undo.
+      undoStack = [];
       currentPoints = [];
     }
     canvas.addEventListener('mouseup', endDrawing);
@@ -159,6 +206,7 @@
       if (!drawing) return;
       drawing = false;
       strokes.push({ points: [...currentPoints], stroke: currentStrokeSize });
+      undoStack = [];
       currentPoints = [];
     });
     
@@ -177,8 +225,8 @@
         });
         ctx.stroke();
       });
-      // Draw the current stroke
-      if (currentPoints.length) {
+      // Draw current stroke
+      if(currentPoints.length) {
         ctx.beginPath();
         ctx.lineWidth = currentStrokeSize;
         ctx.lineJoin = 'round';
@@ -196,6 +244,11 @@
     const pullMenu = document.getElementById('pullMenu');
     const menuZone = document.getElementById('menuZone');
     const clearBtn = document.getElementById('clearBtn');
+    const hideMenuBtn = document.getElementById('hideMenuBtn');
+    const sizeS = document.getElementById('sizeS');
+    const sizeM = document.getElementById('sizeM');
+    const sizeL = document.getElementById('sizeL');
+    
     let dragStartX = null;
     let menuTimeout = null;
     
@@ -247,7 +300,13 @@
     // Prevent text selection in the menu
     pullMenu.addEventListener('mousedown', (evt) => evt.preventDefault());
     
-    // Clear the drawing when the trash can button is clicked and auto-hide the menu.
+    // Hide menu on arrow button click
+    hideMenuBtn.addEventListener('click', () => {
+      pullMenu.style.left = '-200px';
+      if (menuTimeout) clearTimeout(menuTimeout);
+    });
+    
+    // Clear the drawing when the trash can button is clicked
     clearBtn.addEventListener('click', () => {
       strokes = [];
       currentPoints = [];
@@ -256,9 +315,29 @@
         pullMenu.style.left = '-200px';
       }, 500);
     });
+    
+    // Undo functionality: pressing "Z" removes the most recent stroke.
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'z' || e.key === 'Z') {
+        e.preventDefault();
+        if (strokes.length > 0) {
+          // Pop the last stroke and push it to the undo stack.
+          let removedStroke = strokes.pop();
+          undoStack.push(removedStroke);
+          // Limit the undo stack to 10 strokes.
+          if (undoStack.length > 10) {
+            undoStack.shift();
+          }
+          redraw();
+        }
+      }
+    });
+    
+    // Optionally, you could add a redo function (not requested)
+    // ...
   </script>
   
-    <!-- Add F5 refresh listener (if needed) -->
+  <!-- F5 refresh listener -->
   <script>
     document.addEventListener('keydown', function(e) {
       if (e.key === 'F5' || e.keyCode === 116) {
