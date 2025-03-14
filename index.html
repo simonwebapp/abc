@@ -20,8 +20,7 @@
     ::-webkit-scrollbar {
       display: none !important;
     }
-    /* The drawing canvas fills the viewport.
-       Intrinsic size is 1920x1080. */
+    /* The drawing canvas: fills the viewport; intrinsic size is 1920x1080 */
     #canvas {
       display: block;
       width: 100vw;
@@ -30,8 +29,7 @@
       background-size: cover;
       cursor: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxNiIgaGVpZ2h0PSIxNiI+PGNpcmNsZSBjeD0iOCIgY3k9IjgiIHI9IjgiIGZpbGw9InJlZCIvPjwvc3ZnPg==") 8 8, auto;
     }
-    /* Pull-in menu on the far right, vertical layout, placed at top:100px.
-       Initially hidden off-screen to the right (-200px). */
+    /* Right-side pull-in menu: vertical layout, placed at top 100px, initially hidden off-screen */
     #pullMenu {
       position: fixed;
       top: 100px;
@@ -47,8 +45,7 @@
       -webkit-user-drag: none;
       -webkit-touch-callout: none;
     }
-    /* Menu buttons: trash can and undo icon.
-       Font size increased 20% (set to 48px). */
+    /* Menu buttons: trash can and undo icon */
     #clearBtn, #undoBtn {
       font-size: 48px;
       background: none;
@@ -85,20 +82,20 @@
   <div id="menuZone"></div>
   
   <script>
-    // Default settings: yellow drawing color and medium stroke size = 4.
+    // Default settings: yellow drawing color and medium stroke size (4)
     let currentStrokeSize = 4;
     const defaultColor = '#FFEA00';
     
     const canvas = document.getElementById('canvas');
     const ctx = canvas.getContext('2d');
     let drawing = false;
-    // Each stroke stored as { points: [...], stroke: number }
+    // Each stroke is stored as an object: { points: [...], stroke: number }
     let strokes = [];
     let currentPoints = [];
-    // Undo stack for storing undone strokes (we push as many as occur)
+    // Undo stack for storing undone strokes
     let undoStack = [];
     
-    // Convert event coordinates to canvas coordinates (accounting for scaling).
+    // Convert event coordinates to canvas coordinates, accounting for scaling.
     function getMousePos(evt) {
       const rect = canvas.getBoundingClientRect();
       const scaleX = canvas.width / rect.width;
@@ -117,12 +114,11 @@
       };
     }
     
-    // Start drawing only if the starting point is not in the left 50px,
-    // and if the starting point's x-coordinate is at least 310.
+    // Start drawing only if the initial event is not in the left 50px and the x-coordinate (after scaling) is at least 310.
     canvas.addEventListener('mousedown', (evt) => {
-      if (evt.clientX < 50) return;
+      if (evt.clientX < 50) return; // Block drawing in left 50px.
       const pos = getMousePos(evt);
-      if (pos.x < 310) return;
+      if (pos.x < 310) return; // Block drawing if initial x < 310.
       drawing = true;
       currentPoints = [];
       currentPoints.push(pos);
@@ -136,14 +132,14 @@
       if (!drawing) return;
       drawing = false;
       strokes.push({ points: [...currentPoints], stroke: currentStrokeSize });
-      // Reset the undoStack whenever a new stroke is committed.
+      // Clear the undo stack when a new stroke is completed.
       undoStack = [];
       currentPoints = [];
     }
     canvas.addEventListener('mouseup', endDrawing);
     canvas.addEventListener('mouseleave', endDrawing);
     
-    // Touch events (ignore touches in the left 50px and if x < 310).
+    // Touch events (ignore touches in the left 50px and if x < 310)
     canvas.addEventListener('touchstart', (evt) => {
       if (evt.touches[0].clientX < 50) return;
       const pos = getMousePos(evt);
@@ -183,7 +179,7 @@
         });
         ctx.stroke();
       });
-      // Draw current stroke
+      // Draw the current stroke in progress
       if (currentPoints.length) {
         ctx.beginPath();
         ctx.lineWidth = currentStrokeSize;
@@ -215,7 +211,7 @@
       }, 5000);
     }
     
-    // Drag detection for revealing the menu (mouse on right edge)
+    // Drag detection for revealing the menu (for mouse on right edge)
     document.addEventListener('mousedown', (evt) => {
       if (evt.clientX > window.innerWidth - 50) {
         dragStartX = evt.clientX;
@@ -255,31 +251,16 @@
     // Prevent text selection in the menu.
     pullMenu.addEventListener('mousedown', (evt) => evt.preventDefault());
     
-    // Hide menu on its auto-hide timer or if desired.
-    // (The menu auto-hides after 5 seconds via showMenu's timer.)
-    
-    // Clear drawing when the trash can button is clicked.
-    clearBtn.addEventListener('click', () => {
-      strokes = [];
-      currentPoints = [];
-      redraw();
-      setTimeout(() => {
-        pullMenu.style.right = '-200px';
-      }, 500);
-    });
-    
-    // Undo button functionality: remove the most recent stroke.
-    // Also, when the user clicks and holds the undo button, do not auto-hide.
+    // Hide menu on arrow button click.
+    // Here, the menu stays while the user is holding the undo button.
+    // When released, the auto-hide timer restarts.
     undoBtn.addEventListener('mousedown', () => {
-      // Clear auto-hide timer while the button is held.
       if (menuTimeout) clearTimeout(menuTimeout);
     });
     undoBtn.addEventListener('mouseup', () => {
-      // After release, perform undo and restart auto-hide timer.
       if (strokes.length > 0) {
         let removedStroke = strokes.pop();
         undoStack.push(removedStroke);
-        // Optionally, limit undoStack to 10 strokes.
         if (undoStack.length > 10) {
           undoStack.shift();
         }
@@ -301,9 +282,6 @@
             undoStack.shift();
           }
           redraw();
-          // Also, show the menu when undo is used via keyboard,
-          // and then auto-hide after 5 seconds.
-          showMenu();
         }
       }
     });
@@ -314,6 +292,16 @@
         e.preventDefault();
         window.location.reload();
       }
+    });
+    
+    // Clear drawing when the trash can button is clicked.
+    clearBtn.addEventListener('click', () => {
+      strokes = [];
+      currentPoints = [];
+      redraw();
+      setTimeout(() => {
+        pullMenu.style.right = '-200px';
+      }, 500);
     });
   </script>
 </body>
