@@ -22,7 +22,7 @@
       display: block;
       width: 100vw;
       height: 100vh;
-      background: url('BG_V2.png') no-repeat center center;
+      background: url('BG_V6.png') no-repeat center center;
       background-size: cover;
       cursor: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxNiIgaGVpZ2h0PSIxNiI+PGNpcmNsZSBjeD0iOCIgY3k9IjgiIHI9IjgiIGZpbGw9InJlZCIvPjwvc3ZnPg==") 8 8, auto;
     }
