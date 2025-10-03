@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Drawing App with Right-Side Menu</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-  <meta name="mobile-web-app-capable" content="yes">
+  <meta charset="UTF-8" />
+  <title>Drawing App with Left Pen/Eraser</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <meta name="mobile-web-app-capable" content="yes" />
   <style>
     html, body {
       margin: 0 !important;
@@ -17,9 +17,8 @@
       -webkit-user-select: none;
       -ms-user-select: none;
     }
-    ::-webkit-scrollbar {
-      display: none !important;
-    }
+    ::-webkit-scrollbar { display: none !important; }
+
     /* The drawing canvas: fills the viewport; intrinsic size is 1920x1080 */
     #canvas {
       display: block;
@@ -29,72 +28,91 @@
       background-size: cover;
       cursor: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxNiIgaGVpZ2h0PSIxNiI+PGNpcmNsZSBjeD0iOCIgY3k9IjgiIHI9IjgiIGZpbGw9InJlZCIvPjwvc3ZnPg==") 8 8, auto;
     }
-    /* Right-side pull-in menu: vertical layout, placed at top 100px, initially hidden off-screen */
-    #pullMenu {
+
+    /* Left-side tool: Pen over Eraser, centered vertically, discreet white icons */
+    #leftTools {
       position: fixed;
-      top: 100px;
-      right: -200px;
-      width: 200px;
-      height: 100px;
+      left: 10px;
+      top: 50%;
+      transform: translateY(-50%);
       display: flex;
       flex-direction: column;
-      justify-content: space-around;
-      align-items: center;
-      z-index: 1002;
-      transition: right 0.3s ease;
+      gap: 12px;
+      z-index: 1003;
       -webkit-user-drag: none;
       -webkit-touch-callout: none;
     }
-    /* Menu buttons: trash can and undo icon */
-    #clearBtn, #undoBtn {
-      font-size: 48px;
-      background: none;
+    .toolBtn {
+      width: 44px;
+      height: 44px;
       border: none;
-      color: white;
+      background: rgba(255,255,255,0.08);
+      border-radius: 10px;
+      display: grid;
+      place-items: center;
       cursor: pointer;
-      user-select: none;
-      -webkit-user-select: none;
-      -ms-user-select: none;
+      outline: none;
+      padding: 0;
+      transition: transform 0.1s ease, background 0.2s ease;
     }
-    /* Invisible right-edge drag area (50px wide) */
-    #menuZone {
-      position: fixed;
-      top: 0;
-      right: 0;
-      width: 50px;
-      height: 100vh;
-      z-index: 1003;
-      background: transparent;
-      cursor: ew-resize;
+    .toolBtn:active { transform: scale(0.96); }
+    .toolBtn svg {
+      width: 22px; height: 22px;
+      fill: white;            /* affects the pen icon; eraser uses stroke */
+      opacity: 0.9;
+      pointer-events: none;
     }
+    .toolBtn.active { background: rgba(255,255,255,0.2); }
   </style>
 </head>
 <body onselectstart="return false;">
   <canvas id="canvas" width="1920" height="1080"></canvas>
-  
-  <!-- Pull-in menu with trash can and undo buttons -->
-  <div id="pullMenu">
-    <button id="clearBtn" title="Clear Drawing">🗑</button>
-    <button id="undoBtn" title="Undo Last Stroke">↺</button>
+
+  <!-- Left tools: Pen (top) and Eraser (bottom) -->
+  <div id="leftTools">
+    <!-- Pen -->
+    <button id="penBtn" class="toolBtn" title="Pen (draw)">
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M3 17.25V21h3.75L18.81 8.94l-3.75-3.75L3 17.25zm2.92 2.83H5v-.92L14.06 9.02l.92.92L5.92 20.08zM20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/>
+      </svg>
+    </button>
+    <!-- Eraser (white outline, tilted, with band) -->
+    <button id="eraserBtn" class="toolBtn" title="Eraser">
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <g transform="rotate(-45 12 12)">
+          <!-- Body outline -->
+          <rect x="5" y="9" width="14" height="8" rx="2" ry="2"
+                fill="none" stroke="white" stroke-width="2"/>
+          <!-- Band -->
+          <line x1="10" y1="9" x2="10" y2="17"
+                stroke="white" stroke-width="2"/>
+        </g>
+      </svg>
+    </button>
   </div>
-  
-  <!-- Invisible right-edge drag area -->
-  <div id="menuZone"></div>
-  
+
   <script>
-    // Default settings: yellow drawing color and medium stroke size (4)
-    let currentStrokeSize = 4;
+    // ===== Config =====
+    // Default pen color
     const defaultColor = '#FFEA00';
-    
+    // Separate sizes for pen and eraser
+    let penSize = 4;       // pen thickness
+    let eraserSize = 20;   // eraser thickness (bigger)
+    // Will be set when a stroke starts, based on mode:
+    let currentStrokeSize = penSize;
+
     const canvas = document.getElementById('canvas');
     const ctx = canvas.getContext('2d');
     let drawing = false;
-    // Each stroke is stored as an object: { points: [...], stroke: number }
+
+    // Mode handling: 'draw' or 'erase'
+    let currentMode = 'draw';
+
+    // Each stroke: { points:[{x,y},...], stroke:number, mode:'draw'|'erase' }
     let strokes = [];
     let currentPoints = [];
-    // Undo stack for storing undone strokes
     let undoStack = [];
-    
+
     // Convert event coordinates to canvas coordinates, accounting for scaling.
     function getMousePos(evt) {
       const rect = canvas.getBoundingClientRect();
@@ -108,46 +126,45 @@
         x = evt.clientX;
         y = evt.clientY;
       }
-      return {
-        x: (x - rect.left) * scaleX,
-        y: (y - rect.top) * scaleY
-      };
+      return { x: (x - rect.left) * scaleX, y: (y - rect.top) * scaleY };
     }
-    
-    // Start drawing only if the initial event is not in the left 50px and the x-coordinate (after scaling) is at least 310.
+
+    // Start drawing only if the initial event is not in the left 50px and the x-coordinate is at least 310.
     canvas.addEventListener('mousedown', (evt) => {
-      if (evt.clientX < 50) return; // Block drawing in left 50px.
+      if (evt.clientX < 50) return;
       const pos = getMousePos(evt);
-      if (pos.x < 310) return; // Block drawing if initial x < 310.
+      if (pos.x < 310) return;
       drawing = true;
-      currentPoints = [];
-      currentPoints.push(pos);
+      // set size per mode
+      currentStrokeSize = (currentMode === 'erase') ? eraserSize : penSize;
+      currentPoints = [pos];
     });
+
     canvas.addEventListener('mousemove', (evt) => {
       if (!drawing) return;
       currentPoints.push(getMousePos(evt));
       redraw();
     });
-    function endDrawing(evt) {
+
+    function endDrawing() {
       if (!drawing) return;
       drawing = false;
-      strokes.push({ points: [...currentPoints], stroke: currentStrokeSize });
-      // Clear the undo stack when a new stroke is completed.
+      strokes.push({ points: [...currentPoints], stroke: currentStrokeSize, mode: currentMode });
       undoStack = [];
       currentPoints = [];
     }
     canvas.addEventListener('mouseup', endDrawing);
     canvas.addEventListener('mouseleave', endDrawing);
-    
-    // Touch events (ignore touches in the left 50px and if x < 310)
+
+    // Touch events
     canvas.addEventListener('touchstart', (evt) => {
       if (evt.touches[0].clientX < 50) return;
       const pos = getMousePos(evt);
       if (pos.x < 310) return;
       evt.preventDefault();
       drawing = true;
-      currentPoints = [];
-      currentPoints.push(pos);
+      currentStrokeSize = (currentMode === 'erase') ? eraserSize : penSize;
+      currentPoints = [pos];
     });
     canvas.addEventListener('touchmove', (evt) => {
       evt.preventDefault();
@@ -159,150 +176,77 @@
       evt.preventDefault();
       if (!drawing) return;
       drawing = false;
-      strokes.push({ points: [...currentPoints], stroke: currentStrokeSize });
+      strokes.push({ points: [...currentPoints], stroke: currentStrokeSize, mode: currentMode });
       undoStack = [];
       currentPoints = [];
     });
-    
+
+    function drawPath(points, strokeWidth, mode) {
+      ctx.beginPath();
+      ctx.lineWidth = strokeWidth;
+      ctx.lineJoin = 'round';
+      ctx.lineCap = 'round';
+
+      if (mode === 'erase') {
+        ctx.globalCompositeOperation = 'destination-out';
+        ctx.strokeStyle = 'rgba(0,0,0,1)';
+      } else {
+        ctx.globalCompositeOperation = 'source-over';
+        ctx.strokeStyle = defaultColor;
+      }
+
+      points.forEach((p, i) => (i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y)));
+      ctx.stroke();
+
+      // reset
+      ctx.globalCompositeOperation = 'source-over';
+    }
+
     function redraw() {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-      // Draw saved strokes
-      strokes.forEach(strokeObj => {
-        ctx.beginPath();
-        ctx.lineWidth = strokeObj.stroke;
-        ctx.lineJoin = 'round';
-        ctx.lineCap = 'round';
-        ctx.strokeStyle = defaultColor;
-        strokeObj.points.forEach((point, i) => {
-          if (i === 0) ctx.moveTo(point.x, point.y);
-          else ctx.lineTo(point.x, point.y);
-        });
-        ctx.stroke();
-      });
-      // Draw the current stroke in progress
-      if (currentPoints.length) {
-        ctx.beginPath();
-        ctx.lineWidth = currentStrokeSize;
-        ctx.lineJoin = 'round';
-        ctx.lineCap = 'round';
-        ctx.strokeStyle = defaultColor;
-        currentPoints.forEach((point, i) => {
-          if (i === 0) ctx.moveTo(point.x, point.y);
-          else ctx.lineTo(point.x, point.y);
-        });
-        ctx.stroke();
-      }
+      strokes.forEach(s => drawPath(s.points, s.stroke, s.mode));
+      if (currentPoints.length) drawPath(currentPoints, currentStrokeSize, currentMode);
     }
-    
-    // Menu functionality on the right.
-    const pullMenu = document.getElementById('pullMenu');
-    const menuZone = document.getElementById('menuZone');
-    const clearBtn = document.getElementById('clearBtn');
-    const undoBtn = document.getElementById('undoBtn');
-    
-    let dragStartX = null;
-    let menuTimeout = null;
-    
-    function showMenu() {
-      pullMenu.style.right = '0';
-      if (menuTimeout) clearTimeout(menuTimeout);
-      menuTimeout = setTimeout(() => {
-        pullMenu.style.right = '-200px';
-      }, 5000);
-    }
-    
-    // Drag detection for revealing the menu (for mouse on right edge)
-    document.addEventListener('mousedown', (evt) => {
-      if (evt.clientX > window.innerWidth - 50) {
-        dragStartX = evt.clientX;
-      }
-    });
-    document.addEventListener('mousemove', (evt) => {
-      if (dragStartX !== null) {
-        const delta = evt.clientX - dragStartX;
-        if (delta < -50) { // Drag leftwards from the right edge by 50px
-          showMenu();
-          dragStartX = null;
-        }
-      }
-    });
-    document.addEventListener('mouseup', () => {
-      dragStartX = null;
-    });
-    // Touch-based drag detection for right edge
-    document.addEventListener('touchstart', (evt) => {
-      if (evt.touches[0].clientX > window.innerWidth - 50) {
-        dragStartX = evt.touches[0].clientX;
-      }
-    });
-    document.addEventListener('touchmove', (evt) => {
-      if (dragStartX !== null) {
-        const delta = evt.touches[0].clientX - dragStartX;
-        if (delta < -50) {
-          showMenu();
-          dragStartX = null;
-        }
-      }
-    });
-    document.addEventListener('touchend', () => {
-      dragStartX = null;
-    });
-    
-    // Prevent text selection in the menu.
-    pullMenu.addEventListener('mousedown', (evt) => evt.preventDefault());
-    
-    // Hide menu on arrow button click.
-    // Here, the menu stays while the user is holding the undo button.
-    // When released, the auto-hide timer restarts.
-    undoBtn.addEventListener('mousedown', () => {
-      if (menuTimeout) clearTimeout(menuTimeout);
-    });
-    undoBtn.addEventListener('mouseup', () => {
-      if (strokes.length > 0) {
-        let removedStroke = strokes.pop();
-        undoStack.push(removedStroke);
-        if (undoStack.length > 10) {
-          undoStack.shift();
-        }
-        redraw();
-      }
-      menuTimeout = setTimeout(() => {
-        pullMenu.style.right = '-200px';
-      }, 5000);
-    });
-    
-    // Also add keyboard shortcut for undo (Z key).
+
+    // Undo (Z)
     document.addEventListener('keydown', function(e) {
       if (e.key === 'z' || e.key === 'Z') {
         e.preventDefault();
         if (strokes.length > 0) {
-          let removedStroke = strokes.pop();
-          undoStack.push(removedStroke);
-          if (undoStack.length > 10) {
-            undoStack.shift();
-          }
+          let removed = strokes.pop();
+          undoStack.push(removed);
+          if (undoStack.length > 10) undoStack.shift();
           redraw();
         }
       }
     });
-    
-    // F5 refresh listener.
+
+    // F5 reload
     document.addEventListener('keydown', function(e) {
       if (e.key === 'F5' || e.keyCode === 116) {
         e.preventDefault();
         window.location.reload();
       }
     });
-    
-    // Clear drawing when the trash can button is clicked.
-    clearBtn.addEventListener('click', () => {
-      strokes = [];
-      currentPoints = [];
-      redraw();
-      setTimeout(() => {
-        pullMenu.style.right = '-200px';
-      }, 500);
-    });
+
+    // Tool buttons
+    const penBtn = document.getElementById('penBtn');
+    const eraserBtn = document.getElementById('eraserBtn');
+
+    function setMode(mode) {
+      currentMode = mode;
+      if (mode === 'draw') {
+        penBtn.classList.add('active');
+        eraserBtn.classList.remove('active');
+      } else {
+        eraserBtn.classList.add('active');
+        penBtn.classList.remove('active');
+      }
+    }
+
+    penBtn.addEventListener('click', () => setMode('draw'));
+    eraserBtn.addEventListener('click', () => setMode('erase'));
+    setMode('draw'); // start with pen active
   </script>
 </body>
 </html>
